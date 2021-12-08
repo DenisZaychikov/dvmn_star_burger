@@ -113,7 +113,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(OrderDetails)
 class OrderDetailsAdmin(admin.ModelAdmin):
-    pass
+    readonly_fields = ['fixed_price']
 
 
 class OrderDetailsInline(admin.TabularInline):
