@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator
+from django.db.models import Sum, F, DecimalField
 from phonenumber_field.modelfields import PhoneNumberField
 
 
@@ -124,11 +125,20 @@ class RestaurantMenuItem(models.Model):
         return f"{self.restaurant.name} - {self.product.name}"
 
 
+class OrderQuerySet(models.QuerySet):
+    def order(self):
+        orders = self.annotate(
+            common_price=Sum(F('orders__fixed_price') * F('orders__quantity'),
+                             output_field=DecimalField()))
+        return orders
+
+
 class Order(models.Model):
     firstname = models.CharField('имя', max_length=20)
     lastname = models.CharField('фамилия', max_length=20)
     address = models.CharField('адрес', max_length=100)
     phonenumber = PhoneNumberField('телефон')
+    objects = OrderQuerySet.as_manager()
 
     class Meta:
         verbose_name = 'заказ'
@@ -139,8 +149,11 @@ class Order(models.Model):
 
 
 class OrderDetails(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='orders', verbose_name='заказ')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='products', verbose_name='продукт')
+    order = models.ForeignKey(Order, on_delete=models.CASCADE,
+                              related_name='orders', verbose_name='заказ')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE,
+                                related_name='products',
+                                verbose_name='продукт')
     quantity = models.IntegerField('количество')
     fixed_price = models.DecimalField(
         'фиксированная цена',
