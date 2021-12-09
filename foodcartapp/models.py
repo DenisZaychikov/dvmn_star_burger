@@ -153,16 +153,37 @@ class Order(models.Model):
     address = models.CharField('адрес', max_length=100)
     phonenumber = PhoneNumberField('телефон')
     comment = models.TextField('комментарий', blank=True)
-    registered_at = models.DateTimeField('зарегистрирован в',
-                                         default=timezone.now, db_index=True)
-    called_at = models.DateTimeField('позвонили в', null=True, blank=True,
-                                     db_index=True)
-    delivered_at = models.DateTimeField('доставлен в', null=True, blank=True,
-                                        db_index=True)
-    payment = models.CharField('способ оплаты', max_length=20,
-                               choices=PAYMENT_METHOD, default=CREDITCARD)
-    order_status = models.CharField('статус', max_length=20, choices=ORDER_STATUS,
-                              default=UNPROCESSEDORDER)
+    registered_at = models.DateTimeField(
+        'зарегистрирован в',
+        default=timezone.now,
+        db_index=True
+    )
+    called_at = models.DateTimeField(
+        'позвонили в',
+        null=True,
+        blank=True,
+        db_index=True
+    )
+    delivered_at = models.DateTimeField(
+        'доставлен в',
+        null=True,
+        blank=True,
+        db_index=True
+    )
+    payment = models.CharField(
+        'способ оплаты',
+        max_length=20,
+        choices=PAYMENT_METHOD,
+        default=CREDITCARD,
+        db_index=True
+    )
+    order_status = models.CharField(
+        'статус',
+        max_length=20,
+        choices=ORDER_STATUS,
+        default=UNPROCESSEDORDER,
+        db_index=True
+    )
     objects = OrderQuerySet.as_manager()
 
     class Meta:
