@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.db.models import Sum, F, DecimalField
+from django.utils import timezone
 from phonenumber_field.modelfields import PhoneNumberField
 
 
@@ -134,11 +135,34 @@ class OrderQuerySet(models.QuerySet):
 
 
 class Order(models.Model):
+    CASH = 'cash'
+    CREDITCARD = 'creditcard'
+    PROCESSEDORDER = 'processed_order'
+    UNPROCESSEDORDER = 'unprocessed_order'
+    PAYMENT_METHOD = [
+        (CASH, 'наличностью'),
+        (CREDITCARD, 'электронно')
+    ]
+    ORDER_STATUS = [
+        (PROCESSEDORDER, 'обработанный'),
+        (UNPROCESSEDORDER, 'необработанный')
+    ]
+
     firstname = models.CharField('имя', max_length=20)
     lastname = models.CharField('фамилия', max_length=20)
     address = models.CharField('адрес', max_length=100)
     phonenumber = PhoneNumberField('телефон')
     comment = models.TextField('комментарий', blank=True)
+    registered_at = models.DateTimeField('зарегистрирован в',
+                                         default=timezone.now, db_index=True)
+    called_at = models.DateTimeField('позвонили в', null=True, blank=True,
+                                     db_index=True)
+    delivered_at = models.DateTimeField('доставлен в', null=True, blank=True,
+                                        db_index=True)
+    payment = models.CharField('способ оплаты', max_length=20,
+                               choices=PAYMENT_METHOD, default=CREDITCARD)
+    order_status = models.CharField('статус', max_length=20, choices=ORDER_STATUS,
+                              default=UNPROCESSEDORDER)
     objects = OrderQuerySet.as_manager()
 
     class Meta:
