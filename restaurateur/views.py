@@ -1,3 +1,4 @@
+import requests
 from django import forms
 from django.db.models import Sum, F, DecimalField
 from django.shortcuts import redirect, render
@@ -7,7 +8,6 @@ from django.contrib.auth.decorators import user_passes_test
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
-
 
 from foodcartapp.models import Product, Restaurant, Order, OrderDetails, \
     RestaurantMenuItem
@@ -73,12 +73,13 @@ def view_products(request):
     default_availability = {restaurant.id: False for restaurant in restaurants}
     products_with_restaurants = []
     for product in products:
-
         availability = {
             **default_availability,
-            **{item.restaurant_id: item.availability for item in product.menu_items.all()},
+            **{item.restaurant_id: item.availability for item in
+               product.menu_items.all()},
         }
-        orderer_availability = [availability[restaurant.id] for restaurant in restaurants]
+        orderer_availability = [availability[restaurant.id] for restaurant in
+                                restaurants]
 
         products_with_restaurants.append(
             (product, orderer_availability)
@@ -97,6 +98,29 @@ def view_restaurants(request):
     })
 
 
+def fetch_coordinates(apikey, address):
+    base_url = "https://geocode-maps.yandex.ru/1.x"
+    response = requests.get(base_url, params={
+        "geocode": address,
+        "apikey": apikey,
+        "format": "json",
+    })
+    response.raise_for_status()
+    found_places = response.json()['response']['GeoObjectCollection'][
+        'featureMember']
+
+    if not found_places:
+        return None
+
+    most_relevant = found_places[0]
+    lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
+    return lon, lat
+
+
+def save_restaurant_geopos():
+    pass
+
+
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
     orders = Order.objects.order()
@@ -106,12 +130,15 @@ def view_orders(request):
         products_in_orders[order] = products
 
     products_in_restaurants = {}
-    restaurantmenuitems = RestaurantMenuItem.objects.prefetch_related('restaurant').prefetch_related('product')
-    for restaurantmenuitem in restaurantmenuitems:
-        if not restaurantmenuitem.restaurant in products_in_restaurants:
-            products_in_restaurants[restaurantmenuitem.restaurant] = [restaurantmenuitem.product]
+    restaurant_menu_items = RestaurantMenuItem.objects.prefetch_related(
+        'restaurant').prefetch_related('product')
+    for restaurant_menu_item in restaurant_menu_items:
+        if not restaurant_menu_item.restaurant in products_in_restaurants:
+            products_in_restaurants[restaurant_menu_item.restaurant] = [
+                restaurant_menu_item.product]
         else:
-            products_in_restaurants[restaurantmenuitem.restaurant].append(restaurantmenuitem.product)
+            products_in_restaurants[restaurant_menu_item.restaurant].append(
+                restaurant_menu_item.product)
 
     restaurants_in_orders = {}
     for order, order_products in products_in_orders.items():
