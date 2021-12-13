@@ -1,16 +1,17 @@
-import requests
 from django import forms
-from django.db.models import Sum, F, DecimalField
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, get_object_or_404
 from django.views import View
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import user_passes_test
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
+from geopy import distance
 
-from foodcartapp.models import Product, Restaurant, Order, OrderDetails, \
-    RestaurantMenuItem
+from foodcartapp.models import Product, Restaurant, Order, RestaurantMenuItem
+from places.management.commands.restaurantgeopos import fetch_coordinates
+from places.models import RestaurantGeoPosition
+from star_burger.settings import GEOPY_TOKEN
 
 
 class Login(forms.Form):
@@ -98,35 +99,22 @@ def view_restaurants(request):
     })
 
 
-def fetch_coordinates(apikey, address):
-    base_url = "https://geocode-maps.yandex.ru/1.x"
-    response = requests.get(base_url, params={
-        "geocode": address,
-        "apikey": apikey,
-        "format": "json",
-    })
-    response.raise_for_status()
-    found_places = response.json()['response']['GeoObjectCollection'][
-        'featureMember']
-
-    if not found_places:
-        return None
-
-    most_relevant = found_places[0]
-    lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
-    return lon, lat
-
-
-def save_restaurant_geopos():
-    pass
+def get_distance(restaurant, order, apikey):
+    restaurant_geopos = get_object_or_404(
+        RestaurantGeoPosition,
+        name=restaurant.name
+    )
+    order_coords = fetch_coordinates(GEOPY_TOKEN, order.address)
+    restaurant_coords = (restaurant_geopos.lat, restaurant_geopos.lon)
+    return round(distance.distance(order_coords, restaurant_coords).km, 2)
 
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    orders = Order.objects.order()
+    orders = Order.objects.order_total_price()
     products_in_orders = {}
     for order in orders:
-        products = Product.objects.filter(products__order=order)
+        products = Product.objects.filter(orderdetails_products__order=order)
         products_in_orders[order] = products
 
     products_in_restaurants = {}
@@ -151,6 +139,8 @@ def view_orders(request):
                     flag = False
                     break
             if flag:
+                distance = get_distance(restaurant, order, GEOPY_TOKEN)
+                restaurant = f'{restaurant} - {distance} км.'
                 if not order in restaurants_in_orders:
                     restaurants_in_orders[order] = [restaurant]
                 else:

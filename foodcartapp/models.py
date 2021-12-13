@@ -127,9 +127,9 @@ class RestaurantMenuItem(models.Model):
 
 
 class OrderQuerySet(models.QuerySet):
-    def order(self):
+    def order_total_price(self):
         orders = self.annotate(
-            common_price=Sum(F('orders__fixed_price') * F('orders__quantity'),
+            common_price=Sum(F('orderdetails_orders__fixed_price') * F('orderdetails_orders__quantity'),
                              output_field=DecimalField()))
         return orders
 
@@ -151,7 +151,7 @@ class Order(models.Model):
     firstname = models.CharField('имя', max_length=20)
     lastname = models.CharField('фамилия', max_length=20)
     address = models.CharField('адрес', max_length=100)
-    phonenumber = PhoneNumberField('телефон')
+    phonenumber = PhoneNumberField('телефон', db_index=True)
     comment = models.TextField('комментарий', blank=True)
     registered_at = models.DateTimeField(
         'зарегистрирован в',
@@ -196,9 +196,9 @@ class Order(models.Model):
 
 class OrderDetails(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE,
-                              related_name='orders', verbose_name='заказ')
+                              related_name='orderdetails_orders', verbose_name='заказ')
     product = models.ForeignKey(Product, on_delete=models.CASCADE,
-                                related_name='products',
+                                related_name='orderdetails_products',
                                 verbose_name='продукт')
     quantity = models.IntegerField('количество')
     fixed_price = models.DecimalField(
@@ -214,25 +214,3 @@ class OrderDetails(models.Model):
 
     def __str__(self):
         return f'{self.order.firstname} {self.product.name}'
-
-
-class RestaurantGeoPosition(models.Model):
-    name = models.CharField(
-        'название',
-        max_length=50,
-        unique=True
-    )
-    address = models.CharField(
-        'адрес',
-        max_length=100,
-    )
-    lat = models.FloatField('широта')
-    lon = models.FloatField('долгота')
-    request_date = models.DateTimeField('Дата запроса к геокодеру', default=timezone.now)
-
-    class Meta:
-        verbose_name = 'геопозиция ресторана'
-        verbose_name_plural = 'геопозиция ресторанов'
-
-    def __str__(self):
-        return f'{self.name}'

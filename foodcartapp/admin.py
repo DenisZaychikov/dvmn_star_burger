@@ -5,7 +5,7 @@ from django.templatetags.static import static
 from django.utils.html import format_html
 from django.utils.http import is_safe_url
 
-from .models import Product, RestaurantGeoPosition
+from .models import Product
 from .models import ProductCategory
 from .models import Restaurant
 from .models import RestaurantMenuItem
@@ -138,8 +138,3 @@ class OrderAdmin(admin.ModelAdmin):
             return HttpResponseRedirect(next)
         else:
             return res
-
-
-@admin.register(RestaurantGeoPosition)
-class RestaurantGeoPositionAdmin(admin.ModelAdmin):
-    pass
