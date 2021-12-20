@@ -1,7 +1,9 @@
 from django.contrib import admin
+from django.http import HttpResponseRedirect
 from django.shortcuts import reverse
 from django.templatetags.static import static
 from django.utils.html import format_html
+from django.utils.http import is_safe_url
 
 from .models import Product
 from .models import ProductCategory
@@ -92,7 +94,8 @@ class ProductAdmin(admin.ModelAdmin):
     def get_image_preview(self, obj):
         if not obj.image:
             return 'выберите картинку'
-        return format_html('<img src="{url}" style="max-height: 200px;"/>', url=obj.image.url)
+        return format_html('<img src="{url}" style="max-height: 200px;"/>',
+                           url=obj.image.url)
 
     get_image_preview.short_description = 'превью'
 
@@ -100,8 +103,10 @@ class ProductAdmin(admin.ModelAdmin):
         if not obj.image or not obj.id:
             return 'нет картинки'
         edit_url = reverse('admin:foodcartapp_product_change', args=(obj.id,))
-        return format_html('<a href="{edit_url}"><img src="{src}" style="max-height: 50px;"/></a>', edit_url=edit_url,
-                           src=obj.image.url)
+        return format_html(
+            '<a href="{edit_url}"><img src="{src}" style="max-height: 50px;"/></a>',
+            edit_url=edit_url,
+            src=obj.image.url)
 
     get_image_list_preview.short_description = 'превью'
 
@@ -113,7 +118,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(OrderDetails)
 class OrderDetailsAdmin(admin.ModelAdmin):
-    pass
+    readonly_fields = ['fixed_price']
 
 
 class OrderDetailsInline(admin.TabularInline):
@@ -125,3 +130,11 @@ class OrderAdmin(admin.ModelAdmin):
     inlines = [
         OrderDetailsInline,
     ]
+
+    def response_change(self, request, obj):
+        res = super().response_change(request, obj)
+        next = request.GET.get('next')
+        if next and is_safe_url(url=next, allowed_hosts=request.get_host()):
+            return HttpResponseRedirect(next)
+        else:
+            return res

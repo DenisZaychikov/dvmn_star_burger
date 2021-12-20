@@ -1,15 +1,17 @@
 from django import forms
-from django.db.models import Sum, F, DecimalField
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, get_object_or_404
 from django.views import View
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import user_passes_test
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
+from geopy import distance
 
-
-from foodcartapp.models import Product, Restaurant, Order, OrderDetails
+from foodcartapp.models import Product, Restaurant, Order, RestaurantMenuItem
+from places.management.commands.restaurantgeopos import fetch_coordinates
+from places.models import RestaurantGeoPosition
+from star_burger.settings import GEOPY_TOKEN
 
 
 class Login(forms.Form):
@@ -72,12 +74,13 @@ def view_products(request):
     default_availability = {restaurant.id: False for restaurant in restaurants}
     products_with_restaurants = []
     for product in products:
-
         availability = {
             **default_availability,
-            **{item.restaurant_id: item.availability for item in product.menu_items.all()},
+            **{item.restaurant_id: item.availability for item in
+               product.menu_items.all()},
         }
-        orderer_availability = [availability[restaurant.id] for restaurant in restaurants]
+        orderer_availability = [availability[restaurant.id] for restaurant in
+                                restaurants]
 
         products_with_restaurants.append(
             (product, orderer_availability)
@@ -96,9 +99,55 @@ def view_restaurants(request):
     })
 
 
+def get_distance(restaurant, order, apikey):
+    restaurant_geopos = get_object_or_404(
+        RestaurantGeoPosition,
+        name=restaurant.name
+    )
+    order_coords = fetch_coordinates(GEOPY_TOKEN, order.address)
+    restaurant_coords = (restaurant_geopos.lat, restaurant_geopos.lon)
+    return round(distance.distance(order_coords, restaurant_coords).km, 2)
+
+
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    orders = Order.objects.annotate(common_price=Sum(F('orders__product__price') * F('orders__quantity'), output_field=DecimalField()))
-    return render(request, template_name='order_items.html', context={
-        'orders': orders
-    })
+    orders = Order.objects.order_total_price()
+    # products_in_orders = {}
+    # for order in orders:
+    #     products = Product.objects.filter(orderdetails_products__order=order)
+    #     products_in_orders[order] = products
+    print(orders)
+    print(orders[0])
+
+    # products_in_restaurants = {}
+    # restaurant_menu_items = RestaurantMenuItem.objects.prefetch_related(
+    #     'restaurant').prefetch_related('product')
+    # for restaurant_menu_item in restaurant_menu_items:
+    #     if not restaurant_menu_item.restaurant in products_in_restaurants:
+    #         products_in_restaurants[restaurant_menu_item.restaurant] = [
+    #             restaurant_menu_item.product]
+    #     else:
+    #         products_in_restaurants[restaurant_menu_item.restaurant].append(
+    #             restaurant_menu_item.product)
+    #
+    # restaurants_in_orders = {}
+    # for order, order_products in products_in_orders.items():
+    #     for restaurant, restaurant_products in products_in_restaurants.items():
+    #         flag = True
+    #         for product in order_products:
+    #             if product in restaurant_products:
+    #                 continue
+    #             else:
+    #                 flag = False
+    #                 break
+    #         if flag:
+    #             distance = get_distance(restaurant, order, GEOPY_TOKEN)
+    #             restaurant = f'{restaurant} - {distance} км.'
+    #             if not order in restaurants_in_orders:
+    #                 restaurants_in_orders[order] = [restaurant]
+    #             else:
+    #                 restaurants_in_orders[order].append(restaurant)
+
+    return render(request, template_name='order_items.html')#, context={
+    #     'restaurants_in_orders': restaurants_in_orders
+    # })
