@@ -142,6 +142,13 @@ class OrderDetails(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='orders', verbose_name='заказ')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='products', verbose_name='продукт')
     quantity = models.IntegerField('количество')
+    fixed_price = models.DecimalField(
+        'фиксированная цена',
+        null=True,
+        max_digits=8,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
 
     class Meta:
         verbose_name = 'детали заказа'
