@@ -53,6 +53,10 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
+Создать файл `.env` в каталоге `star_burger/` со следующими настройками:
+
+- `GEOPY_TOKEN` — [см. документацию Яндекс кабинет разработика](https://developer.tech.yandex.ru/services/)
+
 Создайте файл базы данных SQLite и отмигрируйте её следующей командой:
 
 ```sh
