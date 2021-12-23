@@ -1,16 +1,15 @@
 from django import forms
-from django.shortcuts import redirect, render, get_object_or_404
+from django.shortcuts import redirect, render
 from django.views import View
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import user_passes_test
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
-from geopy import distance
 
 from foodcartapp.models import Product, Restaurant, Order, RestaurantMenuItem
-from places.management.commands.restaurantgeopos import fetch_coordinates
-from places.models import RestaurantGeoPosition
+
+from places.helpers import get_distance
 from star_burger.settings import GEOPY_TOKEN
 
 
@@ -99,57 +98,44 @@ def view_restaurants(request):
     })
 
 
-def get_distance(restaurant, order, apikey):
-    restaurant_geopos = get_object_or_404(
-        RestaurantGeoPosition,
-        name=restaurant.name
-    )
-    order_coords = fetch_coordinates(GEOPY_TOKEN, order.address)
-    restaurant_coords = (restaurant_geopos.lat, restaurant_geopos.lon)
-    return round(distance.distance(order_coords, restaurant_coords).km, 2)
-
-
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    orders = Order.objects.prefetch_related('details_orders').prefetch_related('details_orders__product')
-    print(orders[0].__dict__)
+    orders = Order.objects.order_total_price().prefetch_related(
+        'details_orders__product')
     products_in_orders = {}
     for order in orders:
         products = Product.objects.filter(details_products__order=order)
         products_in_orders[order] = products
 
+    products_in_restaurants = {}
+    restaurant_menu_items = RestaurantMenuItem.objects.prefetch_related(
+        'restaurant', 'product')
+    for restaurant_menu_item in restaurant_menu_items:
+        if not restaurant_menu_item.restaurant in products_in_restaurants:
+            products_in_restaurants[restaurant_menu_item.restaurant] = [
+                restaurant_menu_item.product]
+        else:
+            products_in_restaurants[restaurant_menu_item.restaurant].append(
+                restaurant_menu_item.product)
 
-    # products_in_restaurants = {}
-    # restaurant_menu_items = RestaurantMenuItem.objects.prefetch_related(
-    #     'restaurant').prefetch_related('product')
-    # for restaurant_menu_item in restaurant_menu_items:
-    #     if not restaurant_menu_item.restaurant in products_in_restaurants:
-    #         products_in_restaurants[restaurant_menu_item.restaurant] = [
-    #             restaurant_menu_item.product]
-    #     else:
-    #         products_in_restaurants[restaurant_menu_item.restaurant].append(
-    #             restaurant_menu_item.product)
-    #
     restaurants_in_orders = {}
     for order, order_products in products_in_orders.items():
-        for product in order_products:
-            print(product.name)
-    #     for restaurant, restaurant_products in products_in_restaurants.items():
-    #         flag = True
-    #         for product in order_products:
-    #             if product in restaurant_products:
-    #                 continue
-    #             else:
-    #                 flag = False
-    #                 break
-    #         if flag:
-    #             distance = get_distance(restaurant, order, GEOPY_TOKEN)
-    #             restaurant = f'{restaurant} - {distance} км.'
-    #             if not order in restaurants_in_orders:
-    #                 restaurants_in_orders[order] = [restaurant]
-    #             else:
-    #                 restaurants_in_orders[order].append(restaurant)
+        for restaurant, restaurant_products in products_in_restaurants.items():
+            flag = True
+            for product in order_products:
+                if product in restaurant_products:
+                    continue
+                else:
+                    flag = False
+                    break
+            if flag:
+                distance = get_distance(restaurant, order, GEOPY_TOKEN)
+                restaurant = f'{restaurant} - {distance} км.'
+                if not order in restaurants_in_orders:
+                    restaurants_in_orders[order] = [restaurant]
+                else:
+                    restaurants_in_orders[order].append(restaurant)
 
-    return render(request, template_name='order_items.html')#, context={
-    #     'restaurants_in_orders': restaurants_in_orders
-    # })
+    return render(request, template_name='order_items.html', context={
+        'restaurants_in_orders': restaurants_in_orders
+    })
