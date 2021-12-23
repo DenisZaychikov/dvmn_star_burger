@@ -111,13 +111,13 @@ def get_distance(restaurant, order, apikey):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    orders = Order.objects.order_total_price()
-    # products_in_orders = {}
-    # for order in orders:
-    #     products = Product.objects.filter(orderdetails_products__order=order)
-    #     products_in_orders[order] = products
-    print(orders)
-    print(orders[0])
+    orders = Order.objects.prefetch_related('details_orders').prefetch_related('details_orders__product')
+    print(orders[0].__dict__)
+    products_in_orders = {}
+    for order in orders:
+        products = Product.objects.filter(details_products__order=order)
+        products_in_orders[order] = products
+
 
     # products_in_restaurants = {}
     # restaurant_menu_items = RestaurantMenuItem.objects.prefetch_related(
@@ -130,8 +130,10 @@ def view_orders(request):
     #         products_in_restaurants[restaurant_menu_item.restaurant].append(
     #             restaurant_menu_item.product)
     #
-    # restaurants_in_orders = {}
-    # for order, order_products in products_in_orders.items():
+    restaurants_in_orders = {}
+    for order, order_products in products_in_orders.items():
+        for product in order_products:
+            print(product.name)
     #     for restaurant, restaurant_products in products_in_restaurants.items():
     #         flag = True
     #         for product in order_products:
