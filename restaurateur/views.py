@@ -104,8 +104,11 @@ def view_orders(request):
         'details_orders__product')
     products_in_orders = {}
     for order in orders:
-        products = Product.objects.filter(details_products__order=order)
-        products_in_orders[order] = products
+        for details in order.details_orders.all():
+            if not order in products_in_orders:
+                products_in_orders[order] = [details.product]
+            else:
+                products_in_orders[order].append(details.product)
 
     products_in_restaurants = {}
     restaurant_menu_items = RestaurantMenuItem.objects.prefetch_related(
