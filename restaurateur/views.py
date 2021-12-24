@@ -9,7 +9,7 @@ from django.contrib.auth import views as auth_views
 
 from foodcartapp.models import Product, Restaurant, Order, RestaurantMenuItem
 
-from places.helpers import get_distance
+from places.helpers import get_distance, is_available_restaurant
 from star_burger.settings import GEOPY_TOKEN
 
 
@@ -100,8 +100,7 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    orders = Order.objects.order_total_price().prefetch_related(
-        'details_orders__product')
+    orders = Order.objects.order_total_price().prefetch_related('details_orders__product')
     products_in_orders = {}
     for order in orders:
         for details in order.details_orders.all():
@@ -124,14 +123,7 @@ def view_orders(request):
     restaurants_in_orders = {}
     for order, order_products in products_in_orders.items():
         for restaurant, restaurant_products in products_in_restaurants.items():
-            flag = True
-            for product in order_products:
-                if product in restaurant_products:
-                    continue
-                else:
-                    flag = False
-                    break
-            if flag:
+            if is_available_restaurant(order_products, restaurant_products):
                 distance = get_distance(restaurant, order, GEOPY_TOKEN)
                 restaurant = f'{restaurant} - {distance} км.'
                 if not order in restaurants_in_orders:

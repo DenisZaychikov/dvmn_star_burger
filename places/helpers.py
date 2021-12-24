@@ -51,3 +51,12 @@ def get_distance(restaurant, order, geopy_token):
     order_coords = fetch_coordinates(geopy_token, order.address)
     restaurant_coords = (restaurant_geopos.lat, restaurant_geopos.lon)
     return round(distance.distance(order_coords, restaurant_coords).km, 2)
+
+
+def is_available_restaurant(order_products, restaurant_products):
+    for product in order_products:
+        if product in restaurant_products:
+            continue
+        else:
+            return False
+    return True
