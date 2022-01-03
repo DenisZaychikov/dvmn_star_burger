@@ -173,7 +173,7 @@ class Order(models.Model):
         'способ оплаты',
         max_length=20,
         choices=PAYMENT_METHOD,
-        default=CREDITCARD,
+        default='не указано',
         db_index=True
     )
     order_status = models.CharField(
