@@ -76,12 +76,12 @@ def register_order(request):
         address=address
     )
     order_details = serializer.validated_data['products']
-    for order_detail in order_details:
-        product = order_detail['product']
-        OrderDetails.objects.create(
-            product=product,
+    OrderDetails.objects.bulk_create([
+        OrderDetails(
+            product=order_detail['product'],
             quantity=order_detail['quantity'],
             order=new_order,
-            fixed_price=product.price
-        )
+            fixed_price=order_detail['product'].price)
+        for order_detail in order_details
+    ])
     return Response(serializer.data)

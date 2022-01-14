@@ -127,24 +127,26 @@ class RestaurantMenuItem(models.Model):
 
 
 class OrderQuerySet(models.QuerySet):
-    def order_total_price(self):
+    def with_total_prices(self):
         orders = self.annotate(common_price=Sum(
-            F('details_orders__fixed_price') * F('details_orders__quantity'), output_field=DecimalField()))
+            F('details__fixed_price') * F('details__quantity'), output_field=DecimalField()))
         return orders
 
 
 class Order(models.Model):
     CASH = 'cash'
     CREDITCARD = 'creditcard'
-    PROCESSEDORDER = 'processed_order'
-    UNPROCESSEDORDER = 'unprocessed_order'
+    UNSPECIFIED = 'unspecified'
+    PROCESSED = 'processed'
+    UNPROCESSED = 'unprocessed'
     PAYMENT_METHOD = [
+        (UNSPECIFIED, 'не указано'),
         (CASH, 'наличностью'),
         (CREDITCARD, 'электронно')
     ]
     ORDER_STATUS = [
-        (PROCESSEDORDER, 'обработанный'),
-        (UNPROCESSEDORDER, 'необработанный')
+        (PROCESSED, 'обработанный'),
+        (UNPROCESSED, 'необработанный')
     ]
 
     firstname = models.CharField('имя', max_length=20)
@@ -152,6 +154,13 @@ class Order(models.Model):
     address = models.CharField('адрес', max_length=100)
     phonenumber = PhoneNumberField('телефон', db_index=True)
     comment = models.TextField('комментарий', blank=True)
+    restaurant = models.ForeignKey(
+        Restaurant,
+        null=True,
+        blank=True,
+        verbose_name='ресторан',
+        on_delete=models.CASCADE
+    )
     registered_at = models.DateTimeField(
         'зарегистрирован в',
         default=timezone.now,
@@ -169,18 +178,18 @@ class Order(models.Model):
         blank=True,
         db_index=True
     )
-    payment = models.CharField(
+    payment_method = models.CharField(
         'способ оплаты',
         max_length=20,
         choices=PAYMENT_METHOD,
-        default='не указано',
+        default=UNSPECIFIED,
         db_index=True
     )
-    order_status = models.CharField(
+    status = models.CharField(
         'статус',
         max_length=20,
         choices=ORDER_STATUS,
-        default=UNPROCESSEDORDER,
+        default=UNPROCESSED,
         db_index=True
     )
     objects = OrderQuerySet.as_manager()
@@ -195,15 +204,17 @@ class Order(models.Model):
 
 class OrderDetails(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE,
-                              related_name='details_orders',
+                              related_name='details',
                               verbose_name='заказ')
     product = models.ForeignKey(Product, on_delete=models.CASCADE,
-                                related_name='details_products',
+                                related_name='details',
                                 verbose_name='продукт')
-    quantity = models.IntegerField('количество')
+    quantity = models.IntegerField(
+        'количество',
+        validators=[MinValueValidator(1)]
+    )
     fixed_price = models.DecimalField(
         'фиксированная цена',
-        null=True,
         max_digits=8,
         decimal_places=2,
         validators=[MinValueValidator(0)]

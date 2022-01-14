@@ -4,14 +4,11 @@ from django.db import migrations
 
 
 def fix_price(apps, schema_editor):
-    Product = apps.get_model('foodcartapp', 'Product')
     OrderDetails = apps.get_model('foodcartapp', 'OrderDetails')
-    products = Product.objects.all()
-    for product in products:
-        orderdetails = OrderDetails.objects.filter(product=product)
-        for orderdetail in orderdetails:
-            orderdetail.fixed_price = product.price
-            orderdetail.save()
+    order_details = OrderDetails.objects.select_related('product').filter(fixed_price=None)
+    for order_detail in order_details.iterator():
+        order_detail.fixed_price = order_detail.product.price
+        order_detail.save()
 
 
 class Migration(migrations.Migration):

@@ -119,6 +119,7 @@ class ProductAdmin(admin.ModelAdmin):
 @admin.register(OrderDetails)
 class OrderDetailsAdmin(admin.ModelAdmin):
     readonly_fields = ['fixed_price']
+    raw_id_fields = ('order', 'product')
 
 
 class OrderDetailsInline(admin.TabularInline):
@@ -136,5 +137,4 @@ class OrderAdmin(admin.ModelAdmin):
         next = request.GET.get('next')
         if next and is_safe_url(url=next, allowed_hosts=request.get_host()):
             return HttpResponseRedirect(next)
-        else:
-            return res
+        return res
