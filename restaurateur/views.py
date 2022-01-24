@@ -1,4 +1,5 @@
 from django import forms
+from django.db.models import Count, Sum, F, DecimalField
 from django.shortcuts import redirect, render
 from django.views import View
 from django.urls import reverse_lazy
@@ -7,7 +8,7 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
 
-from foodcartapp.models import Product, Restaurant, Order, RestaurantMenuItem
+from foodcartapp.models import Product, Restaurant, Order, RestaurantMenuItem, OrderDetails
 
 from places.helpers import get_distance, is_available_restaurant
 from star_burger.settings import GEOPY_TOKEN
@@ -100,8 +101,18 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    orders = Order.objects.with_total_prices().filter(
-        order_status='unprocessed_order').prefetch_related(
+    # products = Product.objects.annotate(
+    #     orders_amount=Count('details__order')).annotate(
+    #     common_price=Sum(F('details__quantity') * F('details__fixed_price'), output_field=DecimalField()))
+    # for product in products:
+    #     print(product.orders_amount)
+    # for product in products:
+    #     print(product.common_price)
+    # orders = OrderDetails.objects.all()
+    # for order in orders:
+    #     print(order.quantity)
+
+    orders = Order.objects.with_total_prices().prefetch_related(
         'details__product')
     products_in_orders = {}
     for order in orders:
@@ -136,3 +147,4 @@ def view_orders(request):
     return render(request, template_name='order_items.html', context={
         'restaurants_in_orders': restaurants_in_orders
     })
+    # return render(request, template_name='order_items.html', context={'asd': 'asd'})
