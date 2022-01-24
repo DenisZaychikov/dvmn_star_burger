@@ -4,6 +4,8 @@ from django.templatetags.static import static
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
+from places.helpers import fetch_coordinates
+from star_burger.settings import GEOPY_TOKEN
 from .models import Product, Order, OrderDetails
 from .serializers import OrderSerializer
 
@@ -69,11 +71,14 @@ def register_order(request):
     lastname = serializer.validated_data['lastname']
     phonenumber = serializer.validated_data['phonenumber']
     address = serializer.validated_data['address']
+    coords = fetch_coordinates(GEOPY_TOKEN, address)
     new_order = Order.objects.create(
         firstname=firstname,
         lastname=lastname,
         phonenumber=phonenumber,
-        address=address
+        address=address,
+        lat=lat,
+        lon=lon
     )
     order_details = serializer.validated_data['products']
     OrderDetails.objects.bulk_create([

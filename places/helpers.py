@@ -1,12 +1,11 @@
 import requests
-from django.http import Http404
-from django.shortcuts import get_object_or_404
 from geopy import distance
 
 from places.models import RestaurantGeoPosition
 
 
 def fetch_coordinates(apikey, address):
+    # return None
     base_url = "https://geocode-maps.yandex.ru/1.x"
     response = requests.get(base_url, params={
         "geocode": address,
@@ -25,38 +24,30 @@ def fetch_coordinates(apikey, address):
     return lat, lon
 
 
-def save_restaurant(restaurant, geopy_token):
-    restaurant_lat, restaurant_lon = fetch_coordinates(
-        geopy_token,
-        restaurant.address
-    )
+def save_restaurant(coords, restaurant):
     restaurant = RestaurantGeoPosition.objects.create(
         name=restaurant.name,
         address=restaurant.address,
-        lat=restaurant_lat,
-        lon=restaurant_lon
+        lat=coords[0],
+        lon=coords[1]
     )
     return restaurant
 
 
 def get_distance(restaurant, order, geopy_token):
     try:
-        restaurant_geopos = get_object_or_404(
-            RestaurantGeoPosition,
-            name=restaurant.name,
-        )
-    except Http404:
-        restaurant_geopos = save_restaurant(restaurant, geopy_token)
+        restaurant_geopos = RestaurantGeoPosition.objects.get(name=restaurant.name)
+    except RestaurantGeoPosition.DoesNotExist:
+        coords = fetch_coordinates(geopy_token, restaurant.address)
+        if coords is not None:
+            restaurant_geopos = save_restaurant(coords, restaurant)
+        else:
+            return 'Wrong coords'
 
-    order_coords = fetch_coordinates(geopy_token, order.address)
+    order_coords = (order.lat, order.lon)
     restaurant_coords = (restaurant_geopos.lat, restaurant_geopos.lon)
     return round(distance.distance(order_coords, restaurant_coords).km, 2)
 
 
 def is_available_restaurant(order_products, restaurant_products):
-    for product in order_products:
-        if product in restaurant_products:
-            continue
-        else:
-            return False
-    return True
+    return all(product in restaurant_products for product in order_products)

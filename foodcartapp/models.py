@@ -154,6 +154,8 @@ class Order(models.Model):
     address = models.CharField('адрес', max_length=100)
     phonenumber = PhoneNumberField('телефон', db_index=True)
     comment = models.TextField('комментарий', blank=True)
+    lat = models.FloatField('широта')
+    lon = models.FloatField('долгота')
     restaurant = models.ForeignKey(
         Restaurant,
         null=True,
