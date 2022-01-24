@@ -226,3 +226,8 @@ class OrderDetails(models.Model):
 
     def __str__(self):
         return f'{self.order.firstname} {self.product.name}'
+
+# 1. products = Product.objects.annotate(orders_amount=Count('details__order'))
+# 2.  dt_now = datetime.datetime.now()
+#     past_date = dt_now - datetime.timedelta(days=30)
+#     products = Product.objects.annotate(orders_amount=Count('details__order')).filter

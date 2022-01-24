@@ -3,6 +3,7 @@ from django.shortcuts import redirect, render
 from django.views import View
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import user_passes_test
+from collections import defaultdict
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
@@ -101,38 +102,30 @@ def view_restaurants(request):
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
     orders = Order.objects.with_total_prices().filter(
-        order_status='unprocessed_order').prefetch_related(
+        status='unprocessed').prefetch_related(
         'details__product')
+
     products_in_orders = {}
     for order in orders:
-        for details in order.details.all():
-            if not order in products_in_orders:
-                products_in_orders[order] = [details.product]
-            else:
-                products_in_orders[order].append(details.product)
+        products_in_orders[order] = [detail.product for detail in order.details.all()]
 
-    products_in_restaurants = {}
+    products_in_restaurants = defaultdict(list)
     restaurant_menu_items = RestaurantMenuItem.objects.filter(
         availability=True).prefetch_related('restaurant', 'product')
     for restaurant_menu_item in restaurant_menu_items:
-        if not restaurant_menu_item.restaurant in products_in_restaurants:
-            products_in_restaurants[restaurant_menu_item.restaurant] = [
-                restaurant_menu_item.product]
-        else:
-            products_in_restaurants[restaurant_menu_item.restaurant].append(
-                restaurant_menu_item.product)
+        products_in_restaurants[restaurant_menu_item.restaurant].append(
+            restaurant_menu_item.product)
 
-    restaurants_in_orders = {}
+    restaurants_in_orders = defaultdict(list)
     for order, order_products in products_in_orders.items():
         for restaurant, restaurant_products in products_in_restaurants.items():
             if is_available_restaurant(order_products, restaurant_products):
                 distance = get_distance(restaurant, order, GEOPY_TOKEN)
                 restaurant = f'{restaurant} - {distance} км.'
-                if not order in restaurants_in_orders:
-                    restaurants_in_orders[order] = [restaurant]
-                else:
-                    restaurants_in_orders[order].append(restaurant)
-
+                restaurants_in_orders[order].append(restaurant)
+    restaurants_in_orders = dict(restaurants_in_orders)
+    
     return render(request, template_name='order_items.html', context={
         'restaurants_in_orders': restaurants_in_orders
     })
+  
