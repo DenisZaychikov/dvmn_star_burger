@@ -102,12 +102,9 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    # orders = Order.objects.with_total_prices().filter(
-    #     status='unprocessed').prefetch_related(
-    #     'details__product')
-    orders = Order.objects.with_total_prices().prefetch_related(
+    orders = Order.objects.with_total_prices().filter(
+        status='unprocessed').prefetch_related(
         'details__product')
-    print(orders)
 
     products_in_orders = {}
     for order in orders:

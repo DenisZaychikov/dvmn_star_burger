@@ -65,6 +65,7 @@ def product_list_api(request):
 @transaction.atomic
 @api_view(['POST'])
 def register_order(request):
+    lat, lon = None, None
     serializer = OrderSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     firstname = serializer.validated_data['firstname']
@@ -72,6 +73,8 @@ def register_order(request):
     phonenumber = serializer.validated_data['phonenumber']
     address = serializer.validated_data['address']
     coords = fetch_coordinates(GEOPY_TOKEN, address)
+    if coords is not None:
+        lat, lon = coords[0], coords[1]
     new_order = Order.objects.create(
         firstname=firstname,
         lastname=lastname,

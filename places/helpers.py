@@ -5,7 +5,6 @@ from places.models import RestaurantGeoPosition
 
 
 def fetch_coordinates(apikey, address):
-    # return None
     base_url = "https://geocode-maps.yandex.ru/1.x"
     response = requests.get(base_url, params={
         "geocode": address,
@@ -24,25 +23,24 @@ def fetch_coordinates(apikey, address):
     return lat, lon
 
 
-def save_restaurant(coords, restaurant):
+def save_restaurant(lat, lon, restaurant):
     restaurant = RestaurantGeoPosition.objects.create(
-        name=restaurant.name,
         address=restaurant.address,
-        lat=coords[0],
-        lon=coords[1]
+        lat=lat,
+        lon=lon
     )
     return restaurant
 
 
 def get_distance(restaurant, order, geopy_token):
+    lat, lon = None, None
     try:
-        restaurant_geopos = RestaurantGeoPosition.objects.get(name=restaurant.name)
+        restaurant_geopos = RestaurantGeoPosition.objects.get(address=restaurant.address)
     except RestaurantGeoPosition.DoesNotExist:
         coords = fetch_coordinates(geopy_token, restaurant.address)
         if coords is not None:
-            restaurant_geopos = save_restaurant(coords, restaurant)
-        else:
-            return 'Wrong coords'
+            lat, lon = coords[0], coords[1]
+        restaurant_geopos = save_restaurant(lat, lon, restaurant)
 
     order_coords = (order.lat, order.lon)
     restaurant_coords = (restaurant_geopos.lat, restaurant_geopos.lon)

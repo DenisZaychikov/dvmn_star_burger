@@ -3,7 +3,7 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import reverse
 from django.templatetags.static import static
 from django.utils.html import format_html
-from django.utils.http import is_safe_url
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .models import Product
 from .models import ProductCategory
@@ -135,6 +135,6 @@ class OrderAdmin(admin.ModelAdmin):
     def response_change(self, request, obj):
         res = super().response_change(request, obj)
         next = request.GET.get('next')
-        if next and is_safe_url(url=next, allowed_hosts=request.get_host()):
+        if next and url_has_allowed_host_and_scheme(url=next, allowed_hosts=request.get_host()):
             return HttpResponseRedirect(next)
         return res

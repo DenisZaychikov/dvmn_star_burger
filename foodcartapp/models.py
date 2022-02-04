@@ -154,8 +154,8 @@ class Order(models.Model):
     address = models.CharField('адрес', max_length=100)
     phonenumber = PhoneNumberField('телефон', db_index=True)
     comment = models.TextField('комментарий', blank=True)
-    lat = models.FloatField('широта')
-    lon = models.FloatField('долгота')
+    lat = models.FloatField('широта', null=True)
+    lon = models.FloatField('долгота', null=True)
     restaurant = models.ForeignKey(
         Restaurant,
         null=True,
@@ -221,7 +221,7 @@ class OrderDetails(models.Model):
         max_digits=8,
         decimal_places=2,
         validators=[MinValueValidator(0)]
-    )
+        )
 
     class Meta:
         verbose_name = 'детали заказа'
