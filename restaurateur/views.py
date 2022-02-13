@@ -1,18 +1,13 @@
 from django import forms
-from django.db.models import Count, Sum, F, DecimalField
 from django.shortcuts import redirect, render
 from django.views import View
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import user_passes_test
-from collections import defaultdict
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
 
-from foodcartapp.models import Product, Restaurant, Order, RestaurantMenuItem, OrderDetails
-
-from places.helpers import get_distance, is_available_restaurant
-from star_burger.settings import GEOPY_TOKEN
+from foodcartapp.models import Product, Restaurant, Order
 
 
 class Login(forms.Form):
@@ -104,28 +99,8 @@ def view_restaurants(request):
 def view_orders(request):
     orders = Order.objects.with_total_prices().filter(
         status='unprocessed').prefetch_related(
-        'details__product')
-
-    products_in_orders = {}
-    for order in orders:
-        products_in_orders[order] = [detail.product for detail in order.details.all()]
-
-    products_in_restaurants = defaultdict(list)
-    restaurant_menu_items = RestaurantMenuItem.objects.filter(
-        availability=True).prefetch_related('restaurant', 'product')
-    for restaurant_menu_item in restaurant_menu_items:
-        products_in_restaurants[restaurant_menu_item.restaurant].append(
-            restaurant_menu_item.product)
-
-    restaurants_in_orders = defaultdict(list)
-    for order, order_products in products_in_orders.items():
-        for restaurant, restaurant_products in products_in_restaurants.items():
-            if is_available_restaurant(order_products, restaurant_products):
-                distance = get_distance(restaurant, order, GEOPY_TOKEN)
-                restaurant = f'{restaurant} - {distance} км.'
-                restaurants_in_orders[order].append(restaurant)
-    restaurants_in_orders = dict(restaurants_in_orders)
+        'details__product').with_restaurants_in_orders()
 
     return render(request, template_name='order_items.html', context={
-        'restaurants_in_orders': restaurants_in_orders
+        'orders': orders
     })

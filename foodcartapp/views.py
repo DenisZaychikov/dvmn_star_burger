@@ -4,7 +4,7 @@ from django.templatetags.static import static
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from places.helpers import fetch_coordinates
+from places.geocoder import fetch_coordinates
 from star_burger.settings import GEOPY_TOKEN
 from .models import Product, Order, OrderDetails
 from .serializers import OrderSerializer
@@ -73,8 +73,8 @@ def register_order(request):
     phonenumber = serializer.validated_data['phonenumber']
     address = serializer.validated_data['address']
     coords = fetch_coordinates(GEOPY_TOKEN, address)
-    if coords is not None:
-        lat, lon = coords[0], coords[1]
+    if coords:
+        lat, lon = coords
     new_order = Order.objects.create(
         firstname=firstname,
         lastname=lastname,

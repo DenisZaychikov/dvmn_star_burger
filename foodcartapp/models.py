@@ -1,8 +1,15 @@
+from collections import defaultdict
+
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.db.models import Sum, F, DecimalField
 from django.utils import timezone
 from phonenumber_field.modelfields import PhoneNumberField
+
+from places.geocoder import get_distance
+from places.models import RestaurantGeoPosition
+from restaurateur.restaurants import is_available_restaurant
+from star_burger.settings import GEOPY_TOKEN
 
 
 class Restaurant(models.Model):
@@ -132,6 +139,41 @@ class OrderQuerySet(models.QuerySet):
             F('details__fixed_price') * F('details__quantity'), output_field=DecimalField()))
         return orders
 
+    def with_restaurants_in_orders(self):
+        products_in_orders = {}
+        for order in self:
+            products_in_orders[order] = [detail.product for detail in order.details.all()]
+
+        products_in_restaurants = defaultdict(list)
+        restaurant_menu_items = RestaurantMenuItem.objects.filter(
+            availability=True).prefetch_related('restaurant', 'product')
+        for restaurant_menu_item in restaurant_menu_items:
+            products_in_restaurants[restaurant_menu_item.restaurant].append(
+                restaurant_menu_item.product)
+
+        restaurant_addresses = []
+        restaurants_in_orders = defaultdict(list)
+        for order, order_products in products_in_orders.items():
+            for restaurant, restaurant_products in products_in_restaurants.items():
+                if is_available_restaurant(order_products, restaurant_products):
+                    restaurants_in_orders[order].append(restaurant)
+                    if restaurant.address not in restaurant_addresses:
+                        restaurant_addresses.append(restaurant.address)
+        restaurants_in_orders = dict(restaurants_in_orders)
+        restaurants_geopos = RestaurantGeoPosition.objects.filter(address__in=restaurant_addresses)
+        restaurants_geopos = list(restaurants_geopos)
+
+        for order, restaurants in restaurants_in_orders.items():
+            restaurants_with_distances = []
+            for index, restaurant in enumerate(restaurants):
+                restaurant_geopos, distance = get_distance(restaurant, order, GEOPY_TOKEN, restaurants_geopos)
+                if restaurant_geopos:
+                    restaurants_geopos.append(restaurant_geopos)
+                restaurant_with_distance = f'{restaurant} - {distance} км.'
+                restaurants_with_distances.append(restaurant_with_distance)
+            order.restaurants = restaurants_with_distances
+        return self
+
 
 class Order(models.Model):
     CASH = 'cash'
@@ -143,6 +185,7 @@ class Order(models.Model):
         (UNSPECIFIED, 'не указано'),
         (CASH, 'наличностью'),
         (CREDITCARD, 'электронно')
+
     ]
     ORDER_STATUS = [
         (PROCESSED, 'обработанный'),
@@ -154,8 +197,8 @@ class Order(models.Model):
     address = models.CharField('адрес', max_length=100)
     phonenumber = PhoneNumberField('телефон', db_index=True)
     comment = models.TextField('комментарий', blank=True)
-    lat = models.FloatField('широта', null=True)
-    lon = models.FloatField('долгота', null=True)
+    lat = models.FloatField('широта', null=True, blank=True)
+    lon = models.FloatField('долгота', null=True, blank=True)
     restaurant = models.ForeignKey(
         Restaurant,
         null=True,
@@ -221,7 +264,7 @@ class OrderDetails(models.Model):
         max_digits=8,
         decimal_places=2,
         validators=[MinValueValidator(0)]
-        )
+    )
 
     class Meta:
         verbose_name = 'детали заказа'

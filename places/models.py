@@ -7,8 +7,8 @@ class RestaurantGeoPosition(models.Model):
         'адрес',
         max_length=100,
     )
-    lat = models.FloatField('широта', null=True)
-    lon = models.FloatField('долгота', null=True)
+    lat = models.FloatField('широта', null=True, blank=True)
+    lon = models.FloatField('долгота', null=True, blank=True)
     request_date = models.DateTimeField('Дата запроса к геокодеру',
                                         default=timezone.now)
 

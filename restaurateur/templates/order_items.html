@@ -24,7 +24,7 @@
       <th>Ссылка на админку</th>
     </tr>
 
-    {% for order, restaurants in restaurants_in_orders.items %}
+    {% for order in orders %}
       <tr>
         <td>{{ order.id }}</td>
         <td>{{ order.get_status_display }}</td>
@@ -37,7 +37,7 @@
             <details>
                 <summary>Развернуть</summary>
                 <ul>
-                    {% for restaurant in restaurants %}
+                    {% for restaurant in order.restaurants %}
                         <li>{{ restaurant }}</li>
                     {% endfor %}
                 </ul>
