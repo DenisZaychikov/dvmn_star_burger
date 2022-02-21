@@ -5,6 +5,8 @@ from django.templatetags.static import static
 from django.utils.html import format_html
 from django.utils.http import is_safe_url
 
+from star_burger.settings import GEOPY_TOKEN
+from .geocoder import fetch_coordinates
 from .models import Product
 from .models import ProductCategory
 from .models import Restaurant
@@ -33,6 +35,15 @@ class RestaurantAdmin(admin.ModelAdmin):
     inlines = [
         RestaurantMenuItemInline
     ]
+
+    def save_model(self, request, obj, form, change):
+        lat, lon = None, None
+        coords = fetch_coordinates(GEOPY_TOKEN, obj.address)
+        if coords:
+            lat, lon = coords
+        obj.lat = lat
+        obj.lon = lon
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(Product)

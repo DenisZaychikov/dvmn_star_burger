@@ -4,7 +4,7 @@ from django.templatetags.static import static
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from places.geocoder import fetch_coordinates
+from foodcartapp.geocoder import fetch_coordinates
 from star_burger.settings import GEOPY_TOKEN
 from .models import Product, Order, OrderDetails
 from .serializers import OrderSerializer

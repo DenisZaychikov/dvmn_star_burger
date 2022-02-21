@@ -6,10 +6,8 @@ from django.db.models import Sum, F, DecimalField
 from django.utils import timezone
 from phonenumber_field.modelfields import PhoneNumberField
 
-from places.geocoder import get_distance
-from places.models import RestaurantGeoPosition
+from foodcartapp.geocoder import get_distance
 from restaurateur.restaurants import is_available_restaurant
-from star_burger.settings import GEOPY_TOKEN
 
 
 class Restaurant(models.Model):
@@ -27,6 +25,8 @@ class Restaurant(models.Model):
         max_length=50,
         blank=True,
     )
+    lat = models.FloatField('широта', null=True, blank=True)
+    lon = models.FloatField('долгота', null=True, blank=True)
 
     class Meta:
         verbose_name = 'ресторан'
@@ -151,24 +151,16 @@ class OrderQuerySet(models.QuerySet):
             products_in_restaurants[restaurant_menu_item.restaurant].append(
                 restaurant_menu_item.product)
 
-        restaurant_addresses = []
         restaurants_in_orders = defaultdict(list)
         for order, order_products in products_in_orders.items():
             for restaurant, restaurant_products in products_in_restaurants.items():
                 if is_available_restaurant(order_products, restaurant_products):
                     restaurants_in_orders[order].append(restaurant)
-                    if restaurant.address not in restaurant_addresses:
-                        restaurant_addresses.append(restaurant.address)
         restaurants_in_orders = dict(restaurants_in_orders)
-        restaurants_geopos = RestaurantGeoPosition.objects.filter(address__in=restaurant_addresses)
-        restaurants_geopos = list(restaurants_geopos)
-
         for order, restaurants in restaurants_in_orders.items():
             restaurants_with_distances = []
-            for index, restaurant in enumerate(restaurants):
-                restaurant_geopos, distance = get_distance(restaurant, order, GEOPY_TOKEN, restaurants_geopos)
-                if restaurant_geopos:
-                    restaurants_geopos.append(restaurant_geopos)
+            for restaurant in restaurants:
+                distance = get_distance(restaurant, order)
                 restaurant_with_distance = f'{restaurant} - {distance} км.'
                 restaurants_with_distances.append(restaurant_with_distance)
             order.restaurants = restaurants_with_distances
