@@ -5,7 +5,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from foodcartapp.geocoder import fetch_coordinates
-from star_burger.settings import GEOPY_TOKEN
+from django.conf import settings
+# from star_burger.settings import GEOPY_TOKEN
 from .models import Product, Order, OrderDetails
 from .serializers import OrderSerializer
 
@@ -72,7 +73,7 @@ def register_order(request):
     lastname = serializer.validated_data['lastname']
     phonenumber = serializer.validated_data['phonenumber']
     address = serializer.validated_data['address']
-    coords = fetch_coordinates(GEOPY_TOKEN, address)
+    coords = fetch_coordinates(settings.GEOPY_TOKEN, address)
     if coords:
         lat, lon = coords
     new_order = Order.objects.create(
